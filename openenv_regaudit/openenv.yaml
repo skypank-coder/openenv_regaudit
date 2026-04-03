@@ -1,0 +1,96 @@
+name: regaudit
+version: "1.0.0"
+description: >
+  RegAudit is a regulatory compliance auditing environment where an AI agent
+  acts as a security engineer auditing Python application codebases against
+  GDPR, OWASP Top 10, and SOC 2 frameworks. The agent must strategically
+  allocate a limited file-read budget, identify violations with precise
+  line numbers, classify severity levels, and generate valid Python patches.
+  Cross-file violations require multi-hop reasoning. False positives are penalized.
+
+author: "RegAudit Team"
+tags:
+  - openenv
+  - security
+  - compliance
+  - code-analysis
+  - gdpr
+  - owasp
+
+tasks:
+  - id: task1_single_file
+    name: "Single-file GDPR audit"
+    difficulty: easy
+    description: "Audit a single Flask routes.py for 3 GDPR violations. All violations self-contained in one file."
+    max_steps: 15
+    file_budget: 3
+    frameworks: ["GDPR"]
+    expected_score_range: [0.70, 0.90]
+
+  - id: task2_django_app
+    name: "Django multi-regulation audit"
+    difficulty: medium
+    description: "Audit a 5-file Django REST API for 8 violations across GDPR and OWASP. No budget pressure — all files readable."
+    max_steps: 30
+    file_budget: 7
+    frameworks: ["GDPR", "OWASP"]
+    expected_score_range: [0.40, 0.65]
+
+  - id: task3_microservices
+    name: "Microservices strategic audit"
+    difficulty: hard
+    description: "Audit 4 microservices (12 files) with only 7 reads. 15 violations including 3 cross-file violations requiring multi-file correlation."
+    max_steps: 50
+    file_budget: 7
+    frameworks: ["GDPR", "OWASP", "SOC2"]
+    expected_score_range: [0.15, 0.40]
+
+action_space:
+  type: discriminated_union
+  discriminator: action_type
+  variants:
+    - type: read_file
+      fields: {path: string}
+      cost: "1 file read budget"
+    - type: search_codebase
+      fields: {query: string, file_pattern: "string|null"}
+      cost: "free"
+    - type: flag_violation
+      fields: {file: string, line_start: int, line_end: int, rule_id: string, severity: enum, description: string}
+      cost: "free"
+    - type: propose_fix
+      fields: {finding_id: string, patch_code: string}
+      cost: "free"
+    - type: finalize_audit
+      fields: {}
+      terminates: true
+
+observation_space:
+  fields:
+    action_result: "string — result of the last action"
+    available_files: "list of FileMetadata (name, size_lines, imports, service) — NO content"
+    framework_rules: "dict of rule_id → rule spec — all active rules"
+    current_findings: "list of Finding objects submitted so far"
+    file_reads_remaining: "int — remaining file read budget"
+    step_count: "int — steps taken this episode"
+    done: "bool"
+
+reward_structure:
+  per_step:
+    correct_violation: +0.10
+    correct_severity: +0.05
+    cross_file_violation: +0.05
+    all_violations_in_file: +0.10
+    false_positive: -0.05
+    valid_patch: "+0.15 * patch_quality_score"
+    time_penalty: "-0.01 per step beyond optimal"
+  terminal:
+    formula: "0.60 * violation_F1 + 0.20 * severity_accuracy + 0.20 * patch_quality"
+
+endpoints:
+  health:   "GET  /health"
+  tasks:    "GET  /tasks"
+  reset:    "POST /reset"
+  step:     "POST /step"
+  state:    "GET  /state?session_id=..."
+  leaderboard: "GET /leaderboard"

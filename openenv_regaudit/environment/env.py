@@ -3,10 +3,10 @@ from typing import Dict, List, Tuple
 import random
 import re
 
-from environment.graders.patch_grader import PatchGrader
-from environment.graders.severity_grader import SeverityGrader
-from environment.graders.violation_grader import ViolationGrader
-from environment.models import (
+from .graders.patch_grader import PatchGrader
+from .graders.severity_grader import SeverityGrader
+from .graders.violation_grader import ViolationGrader
+from .models import (
     Action,
     EpisodeState,
     FileMetadata,
@@ -19,11 +19,11 @@ from environment.models import (
     Reward,
     SearchCodebaseAction,
 )
-from environment.reward import RewardShaper
-from environment.rules import ALL_RULES
-from environment.tasks.task1_single_file import get_task as get_task1
-from environment.tasks.task2_django_app import get_task as get_task2
-from environment.tasks.task3_microservices import get_task as get_task3
+from .reward import RewardShaper
+from .rules import ALL_RULES
+from .tasks.task1_single_file import get_task as get_task1
+from .tasks.task2_django_app import get_task as get_task2
+from .tasks.task3_microservices import get_task as get_task3
 
 TASK_LOADERS = {
     "task1_single_file": get_task1,

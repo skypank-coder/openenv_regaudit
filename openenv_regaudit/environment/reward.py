@@ -1,10 +1,10 @@
 from typing import Dict, Tuple
 
-from environment.models import Action, EpisodeState, SEVERITY_LEVELS
-from environment.graders.violation_grader import ViolationGrader
-from environment.graders.patch_grader import PatchGrader
+from .models import Action, EpisodeState, SEVERITY_LEVELS
+from .graders.violation_grader import ViolationGrader
+from .graders.patch_grader import PatchGrader
 
-OPTIMAL_STEPS = {"task1_single_file": 8, "task2_django_app": 18, "task3_microservices": 35}
+OPTIMAL_STEPS = {"task1_single_file": 7, "task2_django_app": 10, "task3_microservices": 6}
 
 
 class RewardShaper:
@@ -30,6 +30,11 @@ class RewardShaper:
         breakdown: Dict[str, float] = {}
 
         if action.action_type == "flag_violation":
+            # Penalize flagging violations in unread files
+            if action.file not in getattr(state, 'read_files', set()):
+                delta -= 0.05
+                breakdown["unread_file_penalty"] = -0.05
+            
             key = (action.file, action.rule_id)
             if violation_match is not None and key not in self._found_violations:
                 # Correct violation found
@@ -60,8 +65,9 @@ class RewardShaper:
                     delta += 0.10
                     breakdown["all_found_bonus"] = 0.10
             elif key in self._found_violations:
-                # Duplicate finding — ignore, no penalty (agent might not know)
-                breakdown["duplicate"] = 0.0
+                # Duplicate finding — penalize
+                delta -= 0.05
+                breakdown["duplicate"] = -0.05
             else:
                 # False positive
                 delta -= 0.05
@@ -76,11 +82,24 @@ class RewardShaper:
                 delta -= 0.02
                 breakdown["wasted_read"] = -0.02
             # violation-adjacent check done in env.py, passed here via action_result annotation
+            
+            # Reward reading files that contain violations
+            gt_for_file = [g for g in state.ground_truth if g["file"] == action.path]
+            if gt_for_file:
+                delta += 0.05
+                breakdown["violation_file_reward"] = 0.05
 
         elif action.action_type == "propose_fix":
             if patch_score is not None:
                 delta += 0.15 * patch_score
                 breakdown["patch_reward"] = 0.15 * patch_score
+
+        elif action.action_type == "finalize":
+            # Efficiency bonus for finishing early
+            optimal = OPTIMAL_STEPS.get(state.task_id, 20)
+            if state.step_count <= optimal:
+                delta += 0.1
+                breakdown["efficiency_bonus"] = 0.1
 
         # Time penalty after optimal steps
         optimal = OPTIMAL_STEPS.get(state.task_id, 20)

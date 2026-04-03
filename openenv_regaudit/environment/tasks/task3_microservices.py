@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-# Oracle check: Task 3: optimal 7-file combo covers 15/15 violations (max score: 0.85)
+# Oracle check: Task 3: optimal 1-file combo covers 4/15 violations (max score: ~0.44)
 
 CODEBASE: Dict[str, str] = {
     "auth_service/auth_models.py": """from dataclasses import dataclass
@@ -199,11 +199,33 @@ def admin_stats(request):
     # OWASP-A02 like bad secret references in logs etc, wrong approach
     return {'stats': []}
 """,
+
+    "monitoring_service.py": """# Monitoring service - decoy file with no violations
+import time
+from typing import Dict, List
+
+class MetricsCollector:
+    def __init__(self):
+        self.metrics = {}
+    
+    def record_request(self, endpoint: str, duration: float):
+        if endpoint not in self.metrics:
+            self.metrics[endpoint] = []
+        self.metrics[endpoint].append(duration)
+    
+    def get_average(self, endpoint: str) -> float:
+        if endpoint in self.metrics and self.metrics[endpoint]:
+            return sum(self.metrics[endpoint]) / len(self.metrics[endpoint])
+        return 0.0
+    
+    def get_stats(self) -> Dict[str, float]:
+        return {endpoint: self.get_average(endpoint) for endpoint in self.metrics}
+""",
 }
 
-# Oracle check: optimal 7-file selection = ['auth_service/auth_views.py', 'payment_service/payment_views.py', 'user_service/user_models.py', 'user_service/user_views.py', 'payment_service/payment_utils.py', 'gateway/gateway_middleware.py', 'gateway/gateway.py']
-# Violations in those 7 files: 15/15
-# Max achievable score with optimal reads: ~1.0
+# Oracle check: optimal 1-file selection = ['auth_service/auth_views.py']
+# Violations in that 1 file: 4/15
+# Max achievable score with optimal reads: ~0.44
 
 GROUND_TRUTH: List[Dict] = [
     {"file": "auth_service/auth_views.py", "rule_id": "OWASP-A01", "severity": "critical", "line_start": 12, "line_end": 15, "cross_file": True, "pair": "user_service/user_views.py"},
@@ -230,7 +252,7 @@ def get_task() -> Dict:
         "codebase": CODEBASE,
         "ground_truth": GROUND_TRUTH,
         "framework": ["GDPR", "OWASP", "SOC2"],
-        "file_reads_remaining": 7,
+        "file_reads_remaining": 1,
         "max_steps": 50,
-        "description": "Audit 4 microservices (12 files) with strategic 7-read budget. Three violations span multiple files.",
+        "description": "Audit 4 microservices (13 files) with strategic 1-read budget. Three violations span multiple files.",
     }

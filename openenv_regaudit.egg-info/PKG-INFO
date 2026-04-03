@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: openenv-regaudit
+Version: 1.0.0
+Summary: RegAudit OpenEnv: Compliance auditing benchmark for LLMs
+Author: OpenEnv Team
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: pydantic
+Requires-Dist: requests

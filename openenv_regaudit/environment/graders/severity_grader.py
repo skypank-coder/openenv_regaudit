@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from environment.models import SEVERITY_LEVELS, EpisodeState
+from ..models import SEVERITY_LEVELS, EpisodeState
 from .base_grader import BaseGrader
 from .violation_grader import ViolationGrader
 

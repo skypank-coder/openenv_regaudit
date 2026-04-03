@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from environment.models import EpisodeState
+from ..models import EpisodeState
 from .base_grader import BaseGrader
 
 

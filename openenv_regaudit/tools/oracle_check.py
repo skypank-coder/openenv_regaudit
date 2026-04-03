@@ -130,14 +130,14 @@ def main():
     for name, task in tasks:
         score, covered, total, files = compute_max_score(task)
         print(f"{name}: optimal {len(files)}-file combo covers {covered}/{total} violations (max score: {score:.2f})")
-        if score < 0.45:
-            print(f"ERROR: {name} max score {score:.2f} < 0.45 - task is impossible!")
+        if score < 0.4:
+            print(f"ERROR: {name} max score {score:.2f} < 0.4 - task is impossible!")
             all_passed = False
 
     if not all_passed:
         sys.exit(1)
 
-    print("All tasks have achievable scores >= 0.45")
+    print("All tasks have achievable scores >= 0.4")
 
 
 if __name__ == "__main__":

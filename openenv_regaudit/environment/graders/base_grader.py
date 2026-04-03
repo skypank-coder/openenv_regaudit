@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from environment.models import EpisodeState
+from ..models import EpisodeState
 
 
 class BaseGrader(ABC):

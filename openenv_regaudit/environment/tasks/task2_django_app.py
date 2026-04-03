@@ -122,7 +122,7 @@ def get_task() -> Dict:
         "codebase": CODEBASE,
         "ground_truth": GROUND_TRUTH,
         "framework": ["GDPR", "OWASP"],
-        "file_reads_remaining": 7,
+        "file_reads_remaining": 3,
         "max_steps": 30,
         "description": "Audit a Django REST API across 5 files for GDPR and OWASP violations.",
     }

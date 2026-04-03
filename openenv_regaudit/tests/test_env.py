@@ -22,12 +22,12 @@ class TestReset:
     def test_reset_task2_has_five_files(self, env):
         obs = env.reset("task2_django_app")
         assert len(obs.available_files) == 5
-        assert obs.file_reads_remaining == 7
+        assert obs.file_reads_remaining == 3
 
-    def test_reset_task3_has_twelve_files(self, env):
+    def test_reset_task3_has_thirteen_files(self, env):
         obs = env.reset("task3_microservices")
-        assert len(obs.available_files) == 12
-        assert obs.file_reads_remaining == 7
+        assert len(obs.available_files) == 13
+        assert obs.file_reads_remaining == 1
 
     def test_reset_clears_previous_state(self, env):
         env.reset("task1_single_file")

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-regaudit"
+version = "1.0.0"
+description = "RegAudit OpenEnv: Compliance auditing benchmark for LLMs"
+authors = [{name = "OpenEnv Team"}]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "requests"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openenv_regaudit*"]

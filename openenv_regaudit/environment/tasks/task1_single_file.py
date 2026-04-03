@@ -29,6 +29,8 @@ class User(Base):
             'email': self.email,
             'password_hash': self.password_hash,
         }
+
+app = Flask(__name__)
 limiter = Limiter(app, key_func=get_remote_address)
 
 @app.errorhandler(400)
@@ -121,12 +123,12 @@ def delete():
 # Oracle check: Task 1: optimal 1-file combo covers 3/3 violations (max score: 0.85)
 
 GROUND_TRUTH: List[Dict] = [
-    # verified: line 78 contains the logger with user.email and request.remote_addr
-    {"file": "routes.py", "rule_id": "GDPR-ART5-1A", "severity": "high", "line_start": 78, "line_end": 80},
-    # verified: line 93 contains VIOLATION 2 comment and line 95 is return jsonify({'user': user.to_dict()})
-    {"file": "routes.py", "rule_id": "GDPR-ART5-1C", "severity": "high", "line_start": 93, "line_end": 96},
-    # verified: login decorator at line 67 and first body statement at line 68
-    {"file": "routes.py", "rule_id": "GDPR-ART25", "severity": "medium", "line_start": 67, "line_end": 69},
+    # verified: line 76 contains the logger with user.email and request.remote_addr
+    {"file": "routes.py", "rule_id": "GDPR-ART5-1A", "severity": "high", "line_start": 76, "line_end": 78},
+    # verified: line 91 contains VIOLATION 2 comment and line 93 is return jsonify({'user': user.to_dict()})
+    {"file": "routes.py", "rule_id": "GDPR-ART5-1C", "severity": "high", "line_start": 91, "line_end": 94},
+    # verified: login decorator at line 62 and first body statement at line 63
+    {"file": "routes.py", "rule_id": "GDPR-ART25", "severity": "medium", "line_start": 62, "line_end": 64},
 ]
 
 

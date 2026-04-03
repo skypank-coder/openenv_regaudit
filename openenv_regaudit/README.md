@@ -89,7 +89,7 @@ Terminal: `0.60 * violation_F1 + 0.20 * severity_accuracy + 0.20 * patch_quality
 git clone <repo_url>
 cd openenv_regaudit
 pip install -r requirements.txt
-uvicorn api.server:app --host 0.0.0.0 --port 7860
+uvicorn api.server:app --host 127.0.0.1 --port 7860
 ```
 
 ### Docker
@@ -190,8 +190,6 @@ A well-trained agent can efficiently prioritize file reads and identify complian
 - Greedy reading: reading the largest files first rather than the highest-import-density files wastes the budget on Task 3
 
 ## Human baseline scores
-task1_single_file: 0.95
-task2_django_app: 0.91
-task3_microservices: 0.74
-
-*Note: Task 3 ceiling is deliberately below 1.0 due to the 7-read budget constraint over a 12-file codebase with 15 violations. Optimal file selection covers ~11 violations; remaining 4 are unreachable within budget.*
+task1_single_file: 0.85
+task2_django_app: 0.74
+task3_microservices: 0.44

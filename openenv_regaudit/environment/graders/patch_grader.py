@@ -2,7 +2,7 @@ import ast
 import re
 from typing import Tuple
 
-from environment.models import EpisodeState
+from ..models import EpisodeState
 from .base_grader import BaseGrader
 
 PATCH_PATTERNS = {

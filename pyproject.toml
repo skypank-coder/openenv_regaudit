@@ -1,7 +1,7 @@
 [project]
 name = "regaudit-benchmark"
 version = "0.1.0"
-description = "RegAuditBench: Benchmark for AI agents in regulatory compliance auditing"
+description = "RegAuditBench"
 readme = "README.md"
 requires-python = ">=3.10"
 
@@ -9,8 +9,12 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "pydantic",
-    "requests"
+    "requests",
+    "openenv>=0.2.0",
 ]
+
+[project.scripts]
+server = "server.app:app"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

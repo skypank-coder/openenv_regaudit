@@ -112,14 +112,17 @@ def get_benchmark():
 
 
 @app.post("/reset")
-def reset(request: ResetRequest):
-    session_id = request.session_id or str(uuid.uuid4())
+def reset(request: Optional[ResetRequest] = None):
+    task_id = request.task_id if request is not None else "task1_single_file"
+    seed = request.seed if request is not None else 42
+    session_id = request.session_id if request is not None and request.session_id else str(uuid.uuid4())
+
     if session_id not in SESSIONS:
         SESSIONS[session_id] = RegAuditEnv()
     env = SESSIONS[session_id]
     try:
-        obs = env.reset(request.task_id, request.seed)
-        task_config = TASK_LOADERS[request.task_id]()
+        obs = env.reset(task_id, seed)
+        task_config = TASK_LOADERS[task_id]()
         return {
             "session_id": session_id,
             "observation": obs.model_dump(),

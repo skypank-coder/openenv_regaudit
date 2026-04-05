@@ -1,3 +1,12 @@
+---
+title: RegAuditBench
+emoji: 🛡️
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_file: app.py
+pinned: false
+---
 This benchmark is designed to evaluate agent decision-making under constraints, not just model pattern recognition.
 # RegAuditBench
 

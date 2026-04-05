@@ -6,7 +6,7 @@ import uuid
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from environment.env import RegAuditEnv
 from environment.models import Action
@@ -15,8 +15,21 @@ from environment.tasks.task2_django_app import get_task as get_task2
 from environment.tasks.task3_microservices import get_task as get_task3
 
 app = FastAPI(title="RegAudit OpenEnv", version="1.0.0")
+ACTION_ADAPTER = TypeAdapter(Action)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.get("/")
+def root():
+    return {
+        "status": "RegAudit OpenEnv is running",
+        "health": "/health",
+        "tasks": "/tasks",
+        "benchmark": "/benchmark",
+        "reset": "/reset",
+        "state": "/state?session_id=...",
+    }
 
 # Session storage (in-memory, sufficient for hackathon)
 SESSIONS: dict[str, RegAuditEnv] = {}
@@ -29,9 +42,14 @@ TASK_LOADERS = {
 }
 
 TASK_METADATA = [
-    {"task_id": "task1_single_file", "name": "Single-file GDPR audit", "difficulty": "easy", "max_steps": 15, "file_budget": 3},
-    {"task_id": "task2_django_app", "name": "Django multi-regulation audit", "difficulty": "medium", "max_steps": 30, "file_budget": 7},
-    {"task_id": "task3_microservices", "name": "Microservices strategic audit", "difficulty": "hard", "max_steps": 50, "file_budget": 7},
+    {
+        "task_id": task_id,
+        "name": task_loader().get("description", task_id),
+        "difficulty": "easy" if task_id.endswith("single_file") else "medium" if "django" in task_id else "hard",
+        "max_steps": task_loader()["max_steps"],
+        "file_budget": task_loader()["file_reads_remaining"],
+    }
+    for task_id, task_loader in TASK_LOADERS.items()
 ]
 
 
@@ -68,21 +86,21 @@ def get_benchmark():
         "tasks": [
             {
                 "task_id": "task1_single_file",
-                "human_ceiling": 0.95,
+                "human_ceiling": 0.85,
                 "gpt4o_mini_baseline": 0.72,
                 "gpt4o_baseline": 0.85,
                 "difficulty": "easy",
             },
             {
                 "task_id": "task2_django_app",
-                "human_ceiling": 0.91,
+                "human_ceiling": 0.74,
                 "gpt4o_mini_baseline": 0.38,
                 "gpt4o_baseline": 0.56,
                 "difficulty": "medium",
             },
             {
                 "task_id": "task3_microservices",
-                "human_ceiling": 0.74,
+                "human_ceiling": 0.44,
                 "gpt4o_mini_baseline": 0.15,
                 "gpt4o_baseline": 0.28,
                 "difficulty": "hard",
@@ -117,7 +135,7 @@ def step(request: StepRequest):
         raise HTTPException(status_code=404, detail="Session not found")
     env = SESSIONS[request.session_id]
     try:
-        action = Action.model_validate(request.action)
+        action = ACTION_ADAPTER.validate_python(request.action)
         obs, reward, done, info = env.step(action)
         return {
             "observation": obs.model_dump(),
@@ -181,4 +199,4 @@ async def global_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api.server:app", host="0.0.0.0", port=int(os.getenv("PORT", 7860)), reload=False)
+    uvicorn.run("api.server:app", host="127.0.0.1", port=int(os.getenv("PORT", 7860)), reload=False)

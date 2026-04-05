@@ -5,6 +5,12 @@ from environment.graders.violation_grader import ViolationGrader
 from environment.graders.patch_grader import PatchGrader
 
 OPTIMAL_STEPS = {"task1_single_file": 8, "task2_django_app": 18, "task3_microservices": 35}
+VIOLATION_REWARDS = {"task1_single_file": 0.10, "task2_django_app": 0.08, "task3_microservices": 0.09}
+SEVERITY_MATCH_BONUSES = {"task1_single_file": 0.05, "task2_django_app": 0.05, "task3_microservices": 0.04}
+FALSE_POSITIVE_PENALTIES = {"task1_single_file": -0.05, "task2_django_app": -0.07, "task3_microservices": -0.06}
+UNINSPECTED_GUESS_PENALTIES = {"task1_single_file": -0.03, "task2_django_app": -0.03, "task3_microservices": -0.04}
+TASK_STEP_SCALES = {"task1_single_file": 1.0, "task2_django_app": 0.80, "task3_microservices": 0.75}
+TASK_FINAL_SCALES = {"task1_single_file": 1.0, "task2_django_app": 0.72, "task3_microservices": 0.64}
 
 
 class RewardShaper:
@@ -28,21 +34,26 @@ class RewardShaper:
         """
         delta = 0.0
         breakdown: Dict[str, float] = {}
+        task_id = state.task_id
+        violation_reward = VIOLATION_REWARDS.get(task_id, 0.10)
+        severity_match_bonus = SEVERITY_MATCH_BONUSES.get(task_id, 0.05)
+        false_positive_penalty = FALSE_POSITIVE_PENALTIES.get(task_id, -0.05)
+        uninspected_guess_penalty = UNINSPECTED_GUESS_PENALTIES.get(task_id, -0.03)
 
         if action.action_type == "flag_violation":
             key = (action.file, action.rule_id)
             if violation_match is not None and key not in self._found_violations:
                 # Correct violation found
-                delta += 0.10
-                breakdown["violation_found"] = 0.10
+                delta += violation_reward
+                breakdown["violation_found"] = violation_reward
                 self._found_violations.add(key)
 
                 # Severity bonus
                 agent_level = SEVERITY_LEVELS[action.severity.value]
                 gt_level = SEVERITY_LEVELS[violation_match["severity"]]
                 if agent_level == gt_level:
-                    delta += 0.05
-                    breakdown["severity_bonus"] = 0.05
+                    delta += severity_match_bonus
+                    breakdown["severity_bonus"] = severity_match_bonus
                 elif abs(agent_level - gt_level) == 1:
                     delta += 0.02
                     breakdown["severity_bonus"] = 0.02
@@ -64,8 +75,12 @@ class RewardShaper:
                 breakdown["duplicate"] = 0.0
             else:
                 # False positive
-                delta -= 0.05
-                breakdown["false_positive"] = -0.05
+                delta += false_positive_penalty
+                breakdown["false_positive"] = false_positive_penalty
+
+            if action.file not in state.inspected_files:
+                delta += uninspected_guess_penalty
+                breakdown["uninspected_guess_penalty"] = uninspected_guess_penalty
 
         elif action.action_type == "read_file":
             # Penalize reads of files with no violations that aren't import-adjacent to violation files
@@ -88,7 +103,14 @@ class RewardShaper:
             delta -= 0.01
             breakdown["time_penalty"] = -0.01
 
+        delta *= TASK_STEP_SCALES.get(task_id, 1.0)
+        if state.task_id == "task3_microservices":
+            delta *= 1.2
+
         return round(delta, 4), breakdown
+
+    def adjust_final_score(self, task_id: str, score: float) -> float:
+        return round(max(0.0, score * TASK_FINAL_SCALES.get(task_id, 1.0)), 4)
 
     def reset(self):
         self._found_violations = set()

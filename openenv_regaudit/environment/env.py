@@ -31,6 +31,9 @@ TASK_LOADERS = {
     "task3_microservices": get_task3,
 }
 
+SEARCH_LIMITS = {"task1_single_file": 3, "task2_django_app": 3, "task3_microservices": 3}
+LINE_TOLERANCES = {"task1_single_file": 10, "task2_django_app": 7, "task3_microservices": 5}
+
 
 class RegAuditEnv:
     def __init__(self):
@@ -38,7 +41,7 @@ class RegAuditEnv:
         self._violation_grader = ViolationGrader()
         self._severity_grader = SeverityGrader()
         self._patch_grader = PatchGrader()
-        self._reward_shaper = RewardShaper(self._violation_grader, self._patch_grader)
+        self.reward_shaper = RewardShaper(self._violation_grader, self._patch_grader)
         self._finding_counter = 0
 
     def reset(self, task_id: str, seed: int = 42) -> Observation:
@@ -61,9 +64,10 @@ class RegAuditEnv:
             file_reads_remaining=task_config["file_reads_remaining"],
             max_steps=task_config["max_steps"],
             seed=seed,
+            inspected_files=set(),
         )
         self._finding_counter = 0
-        self._reward_shaper.reset()
+        self.reward_shaper.reset()
 
         return self._build_observation("Episode started. Begin your audit.", initial=True)
 
@@ -88,6 +92,7 @@ class RegAuditEnv:
                 content = self.state.codebase[action.path]
                 action_result = content
                 self.state.file_reads_remaining -= 1
+                self.state.inspected_files.add(action.path)
                 # Check if this was a "wasted" read (no violations in file)
                 gt_files = {g["file"] for g in self.state.ground_truth}
                 if action.path not in gt_files:
@@ -97,12 +102,12 @@ class RegAuditEnv:
                         action_result += "\n\n[AUDIT NOTE: No violations found in this file]"
 
         elif isinstance(action, SearchCodebaseAction):
-            if self.state.search_count >= 10:
+            if self.state.search_count >= SEARCH_LIMITS.get(self.state.task_id, 3):
                 action_result = "Search budget exhausted. Use read_file to examine files directly."
             else:
                 results = self._search_codebase(action.query, action.file_pattern)
                 if results:
-                    action_result = f"Search results for '{action.query}':\n" + "\n".join(results[:20])
+                    action_result = f"Search results for '{action.query}':\n" + "\n".join(results[:3])
                 else:
                     action_result = f"No matches found for '{action.query}'"
                 self.state.search_count += 1
@@ -151,7 +156,7 @@ class RegAuditEnv:
             return self._finalize()
 
         # Compute step reward
-        reward_delta, breakdown = self._reward_shaper.compute_step_reward(
+        reward_delta, breakdown = self.reward_shaper.compute_step_reward(
             action, action_result, self.state, violation_match, patch_score
         )
         self.state.cumulative_reward += reward_delta
@@ -180,7 +185,10 @@ class RegAuditEnv:
         p_score = self._patch_grader.score(self.state)
 
         # Final combined score: violations 60%, severity 20%, patches 20%
-        final_score = round(0.60 * v_score + 0.20 * s_score + 0.20 * p_score, 4)
+        final_score = 0.60 * v_score + 0.20 * s_score + 0.20 * p_score
+        if self.state.task_id == "task3_microservices" and p_score <= 0:
+            final_score -= 0.10
+        final_score = self.reward_shaper.adjust_final_score(self.state.task_id, final_score)
 
         # Update cumulative to final score (it's the authoritative terminal reward)
         self.state.cumulative_reward = final_score
@@ -195,24 +203,36 @@ class RegAuditEnv:
         return obs, reward, True, {"critique": critique, "final_score": final_score}
 
     def _search_codebase(self, query: str, file_pattern: str | None) -> List[str]:
-        """Grep-like search. Returns list of 'filename:line_num: [SNIPPET - read file for full context]' strings."""
-        results = []
+        """Hint-only search that returns filenames without line numbers or code context."""
+        if not query.strip():
+            return []
+
         pattern = re.compile(query, re.IGNORECASE)
+        hits: List[str] = []
+        seen = set()
+
         for filename, content in self.state.codebase.items():
             if file_pattern and not re.search(file_pattern, filename):
                 continue
-            for i, line in enumerate(content.split('\n'), 1):
-                if pattern.search(line):
-                    snippet = line.strip()[:60] + ('...' if len(line.strip()) > 60 else '')
-                    results.append(f"{filename}:{i}: [{snippet} - read file for full context]")
-        return results
+
+            executable_lines = [
+                line for line in content.split("\n")
+                if not line.lstrip().startswith("#")
+            ]
+            if any(pattern.search(line) for line in executable_lines):
+                if filename not in seen:
+                    seen.add(filename)
+                    hits.append(f"{filename}: match found")
+
+        return hits[:3]
 
     def _find_ground_truth_match(self, action: FlagViolationAction) -> Dict | None:
         """Find matching ground truth entry with 10-line tolerance."""
+        tolerance = LINE_TOLERANCES.get(self.state.task_id, 10)
         for gt in self.state.ground_truth:
             if (gt["file"] == action.file and
                 gt["rule_id"] == action.rule_id and
-                abs(gt["line_start"] - action.line_start) <= 10):
+                abs(gt["line_start"] - action.line_start) <= tolerance):
                 return gt
         return None
 

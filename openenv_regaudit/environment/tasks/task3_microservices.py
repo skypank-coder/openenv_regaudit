@@ -119,6 +119,14 @@ class UserSerializer(serializers.Serializer):
     email = serializers.EmailField()
 """,
 
+    "user_service/utils.py": """def normalize_display_name(name):
+    return name.strip().title()
+
+
+def build_avatar_url(user_id):
+    return f"/avatars/{user_id}.png"
+""",
+
     "payment_service/payment_models.py": """from dataclasses import dataclass
 
 @dataclass
@@ -134,6 +142,14 @@ class Payment:
 
 def validate_currency(currency):
     return currency in ['USD', 'EUR']
+""",
+
+    "payment_service/helpers.py": """def serialize_amount(amount):
+    return f"{amount:.2f}"
+
+
+def default_currency():
+    return 'USD'
 """,
 
     "payment_service/payment_views.py": """from django.http import JsonResponse
@@ -163,6 +179,15 @@ def refund_payment(request):
     'log_body': True,
     'timeout': 30,
 }
+""",
+
+    "gateway/config.py": """DEFAULT_HEADERS = {
+    'X-Service': 'gateway',
+}
+
+
+def get_timeout():
+    return 30
 """,
 
     "gateway/gateway_middleware.py": """import logging
@@ -216,7 +241,7 @@ GROUND_TRUTH: List[Dict] = [
     {"file": "auth_service/auth_views.py", "rule_id": "OWASP-A02", "severity": "critical", "line_start": 2, "line_end": 3},
     {"file": "auth_service/auth_views.py", "rule_id": "SOC2-CC6.1", "severity": "high", "line_start": 17, "line_end": 20},
     {"file": "payment_service/payment_views.py", "rule_id": "GDPR-ART32", "severity": "high", "line_start": 15, "line_end": 17},
-    {"file": "payment_service/payment_views.py", "rule_id": "SOC2-CC6.1", "severity": "high", "line_start": 20, "line_end": 23},
+    {"file": "payment_service/payment_views.py", "rule_id": "SOC2-CC6.1", "severity": "high", "line_start": 19, "line_end": 21},
     {"file": "user_service/user_views.py", "rule_id": "OWASP-A04", "severity": "high", "line_start": 10, "line_end": 13},
     {"file": "user_service/user_models.py", "rule_id": "GDPR-ART30", "severity": "medium", "line_start": 4, "line_end": 8},
     {"file": "user_service/user_models.py", "rule_id": "OWASP-A03", "severity": "critical", "line_start": 11, "line_end": 13},
@@ -232,5 +257,5 @@ def get_task() -> Dict:
         "framework": ["GDPR", "OWASP", "SOC2"],
         "file_reads_remaining": 7,
         "max_steps": 50,
-        "description": "Audit 4 microservices (12 files) with strategic 7-read budget. Three violations span multiple files.",
+        "description": "Audit 4 microservices (15 files) with strategic 7-read budget. Three violations span multiple files.",
     }

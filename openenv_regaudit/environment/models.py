@@ -113,5 +113,6 @@ class EpisodeState(BaseModel):
     done: bool = False
     seed: int = 42
     search_count: int = 0
+    inspected_files: set[str] = set()
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

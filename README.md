@@ -221,7 +221,7 @@ openenv.yaml
 
 ```bash
 pip install -r requirements.txt
-uvicorn api.server:app --host 127.0.0.1 --port 7860
+uvicorn api.server:app --host 0.0.0.0 --port 7860
 ```
 
 ### Environment variables
@@ -267,7 +267,7 @@ docker run --rm -p 7860:7860 regauditbench
 Container entrypoint:
 
 ```bash
-uvicorn api.server:app --host 127.0.0.1 --port 7860
+uvicorn api.server:app --host 0.0.0.0 --port 7860
 ```
 
 ## Hugging Face Spaces

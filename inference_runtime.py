@@ -747,17 +747,24 @@ def build_llm_messages(task_id: str, obs: dict[str, Any], tracker: dict[str, Any
     ]
 
 
-def call_model(client: OpenAI, messages: list[dict[str, str]], step_num: int, retry: bool = False) -> str:
+def call_model(client: OpenAI | None, messages: list[dict[str, str]], step_num: int, retry: bool = False) -> str:
+    if client is None:
+        print(f"Step {step_num}: no LLM client — returning finalize")
+        return '{"action_type": "finalize_audit"}'
     prefix = "[retry] " if retry else ""
     print(f"{prefix}Step {step_num}: calling LLM")
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        temperature=0,
-        max_tokens=400,
-        response_format={"type": "json_object"},
-    )
-    return response.choices[0].message.content or "{}"
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0,
+            max_tokens=400,
+            response_format={"type": "json_object"},
+        )
+        return response.choices[0].message.content or "{}"
+    except Exception as e:
+        print(f"LLM call failed: {e}")
+        return '{"action_type": "finalize_audit"}'
 
 
 def run_offline_task(task_id: str, max_steps: int) -> dict[str, Any]:
@@ -967,10 +974,10 @@ def run_llm_task_once(client: OpenAI, task_id: str, max_steps: int, strict: bool
                     raw = call_model(client, messages, step_count + 1, retry=strict)
                     action = json.loads(raw)
                     print(f"  LLM chose: {action.get('action_type')} | file={action.get('file', action.get('path', '–'))} | line={action.get('line_start', '–')} | rule={action.get('rule_id', '–')}")
+                    tracker["cache"][obs_sig] = action
                 except Exception as e:
-                    print(f"❌ LLM ERROR: {e}")
-                    raise
-                tracker["cache"][obs_sig] = action
+                    print(f"❌ LLM ERROR: {e} — falling back to finalize")
+                    action = {"action_type": "finalize_audit"}
 
         # Validate action type
         if not isinstance(action, dict) or action.get("action_type") not in valid_actions:
@@ -1106,7 +1113,11 @@ def validate_environment() -> None:
 
 def main() -> None:
     start = time.time()
-    validate_environment()
+    try:
+        validate_environment()
+    except Exception as e:
+        print(f"⚠️ Environment validation failed: {e}")
+        print("Continuing anyway — environment may still be starting up.")
     print(f"ENV_BASE_URL={ENV_BASE_URL}")
     print(f"API_BASE_URL={API_BASE_URL}")
     print(f"MODEL_NAME={MODEL_NAME}")
@@ -1136,7 +1147,11 @@ def main() -> None:
         print(f"\n{'=' * 60}")
         print(f"Task: {task_id}")
         print("=" * 60)
-        result = run_offline_task(task_id, max_steps) if use_offline else run_llm_task(client, task_id, max_steps)
+        try:
+            result = run_offline_task(task_id, max_steps) if use_offline else run_llm_task(client, task_id, max_steps)
+        except Exception as e:
+            print(f"❌ Task {task_id} failed with exception: {e}")
+            result = {"task_id": task_id, "score": 0.0, "steps": 0, "mode": "error"}
         results.append(result)
         print(f"  Mode: {result['mode']}")
         print(f"  FINAL SCORE: {result['score']:.4f} ({result['steps']} steps)")
